@@ -28,7 +28,6 @@ RUN set -eux; \
     git \
     jq \
     skopeo \
-    docker.io \
     ldnsutils \
   ; \
   rm -rf /var/lib/apt/lists/*
