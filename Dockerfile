@@ -1,5 +1,5 @@
 # Tooling image with common supply-chain/build utilities.
-# Includes: make, docker (CLI), buildctl, skopeo, grype, syft, cosign, jq, yq, kaniko, git, drill.
+# Includes: make, docker (CLI), buildctl, skopeo, grype, syft, cosign, jq, yq, buildah, git, drill.
 #
 # Usage:
 #   docker build -f Dockerfile.tools -t toolbox:latest .
@@ -8,7 +8,6 @@ ARG DEBIAN_VERSION=bookworm
 FROM debian:${DEBIAN_VERSION}-slim
 
 ARG BUILDKIT_VERSION=v0.26.2
-ARG KANIKO_VERSION=v1.24.0
 ARG YQ_VERSION=v4.49.2
 ARG COSIGN_VERSION=v3.0.2
 ARG SYFT_VERSION=v1.38.0
@@ -28,9 +27,14 @@ RUN set -eux; \
     git \
     jq \
     skopeo \
+    docker.io \
     ldnsutils \
+    buildah \
   ; \
   rm -rf /var/lib/apt/lists/*
+
+# Buildah Version testen
+RUN buildah --version || true
 
 # Install buildctl
 RUN set -eux; \
@@ -80,7 +84,7 @@ RUN set -eux; \
 # Install grype
 RUN set -eux; \
   arch="$(dpkg --print-architecture)"; \
-  case "$arch" in \
+  case "$arch"in \
     amd64) grype_arch="amd64" ;; \
     arm64) grype_arch="arm64" ;; \
     *) echo "unsupported arch: ${arch}" >&2; exit 1 ;; \
@@ -89,15 +93,8 @@ RUN set -eux; \
     GRYPE_VERSION="${GRYPE_VERSION}" INSTALL_DIR=/usr/local/bin sh -s -- -b /usr/local/bin "v${GRYPE_VERSION#v}" grype; \
   grype version
 
-# Install kaniko executor
-RUN set -eux; \
-  arch="$(dpkg --print-architecture)"; \
-  case "$arch" in \
-    amd64) kaniko_arch="amd64" ;; \
-    arm64) kaniko_arch="arm64" ;; \
-    *) echo "unsupported arch: ${arch}" >&2; exit 1 ;; \
-  esac; \
-  curl -sSL "https://github.com/GoogleContainerTools/kaniko/releases/download/${KANIKO_VERSION}/executor-linux-${kaniko_arch}" -o /usr/local/bin/kaniko; \
-  chmod +x /usr/local/bin/kaniko
+# Empfehlung für Kubernetes NonRoot Buildah
+# ENV BUILDAH_ISOLATION=chroot
+# ENV STORAGE_DRIVER=vfs
 
 ENTRYPOINT ["/bin/bash"]
